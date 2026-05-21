@@ -1,3 +1,4 @@
+#Criado o banco de dados e as tabelas 
 import mysql.connector
 
 CFG_BANCO = {

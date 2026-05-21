@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mon Clima — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f5f5f0;
+      --surface:  #ffffff;
+      --border:   #ddddd8;
+      --text:     #1a1a1a;
+      --muted:    #777770;
+      --accent:   #2563eb;
+      --accent2:  #16a34a;
+      --accent3:  #dc2626;
+      --warn:     #d97706;
+      --radius:   6px;
+      --mono:     'IBM Plex Mono', monospace;
+      --sans:     'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: var(--mono);
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: -.5px;
+      color: var(--text);
+    }
+    .logo span { color: var(--accent); }
+    .header-tag {
+      font-family: var(--mono);
+      font-size: .7rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+
+    /* ── LAYOUT ── */
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    section { margin-bottom: 2.5rem; }
+    .section-label {
+      font-family: var(--mono);
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    /* ── CARDS ── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+    .card-label {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-bottom: .5rem;
+      font-weight: 400;
+    }
+    .card-value {
+      font-family: var(--mono);
+      font-size: 2rem;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .card-value.blue  { color: var(--accent); }
+    .card-value.green { color: var(--accent2); }
+    .card-value.red   { color: var(--accent3); }
+    .card-value.amber { color: var(--warn); }
+    .card-sub { font-size: .78rem; color: var(--muted); margin-top: .4rem; }
+
+    /* ── BUSCA ── */
+    .search-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .search-row {
+      display: flex;
+      gap: .75rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .search-row input {
+      flex: 1;
+      min-width: 200px;
+      font-family: var(--mono);
+      font-size: .9rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .6rem 1rem;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s;
+    }
+    .search-row input:focus { border-color: var(--accent); }
+    .btn {
+      font-family: var(--mono);
+      font-size: .85rem;
+      padding: .65rem 1.4rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* result card */
+    #resultado {
+      margin-top: 1rem;
+      display: none;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+    .result-grid { display: flex; gap: 2rem; flex-wrap: wrap; }
+    .result-item .rl { font-size: .72rem; color: var(--muted); }
+    .result-item .rv {
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    .result-city { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
+
+    #erro-msg {
+      display: none;
+      margin-top: .75rem;
+      font-size: .85rem;
+      color: var(--accent3);
+      font-family: var(--mono);
+    }
+
+    /* ── CHARTS ── */
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 680px) { .charts { grid-template-columns: 1fr; } }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .chart-title {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      font-weight: 400;
+    }
+    canvas { width: 100% !important; }
+
+    /* ── TABELA ── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .82rem;
+    }
+    thead th {
+      background: var(--bg);
+      font-family: var(--mono);
+      font-size: .68rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      padding: .7rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg); }
+    tbody td {
+      padding: .65rem 1rem;
+      font-family: var(--mono);
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: .7rem;
+      font-weight: 600;
+    }
+    .badge-blue  { background: #dbeafe; color: var(--accent); }
+    .badge-green { background: #dcfce7; color: var(--accent2); }
+    .badge-red   { background: #fee2e2; color: var(--accent3); }
+
+    .empty { text-align: center; padding: 3rem; color: var(--muted); font-size: .85rem; }
+
+    /* spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">mon_<span>clima</span></div>
+  <div class="header-tag">Open-Meteo · MySQL</div>
+</header>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section>
+    <div class="section-label">Resumo</div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Total de registros</div>
+        <div class="card-value blue">{{ total }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Temperatura média</div>
+        <div class="card-value red">{{ temp_media }}°C</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Cidade mais consultada</div>
+        <div class="card-value" style="font-size:1.3rem">{{ cidade_top }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Última consulta</div>
+        <div class="card-value amber" style="font-size:1rem;line-height:1.4">{{ ultima }}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUSCA -->
+  <section>
+    <div class="section-label">Buscar cidade</div>
+    <div class="search-box">
+      <div class="search-row">
+        <input type="text" id="inputCidade" placeholder="ex: Porto Alegre, São Paulo, Paris…" />
+        <button class="btn" id="btnBuscar" onclick="buscarClima()">Buscar</button>
+      </div>
+      <div id="erro-msg"></div>
+      <div id="resultado">
+        <div class="result-city" id="rCidade"></div>
+        <div class="result-grid">
+          <div class="result-item"><div class="rl">Temperatura</div><div class="rv" id="rTemp"></div></div>
+          <div class="result-item"><div class="rl">Umidade</div><div class="rv" id="rUmidade"></div></div>
+          <div class="result-item"><div class="rl">Vento</div><div class="rv" id="rVento"></div></div>
+          <div class="result-item"><div class="rl">Coordenadas</div><div class="rv" id="rCoord"></div></div>
+          <div class="result-item"><div class="rl">Horário</div><div class="rv" id="rHora"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRÁFICOS -->
+  <section>
+    <div class="section-label">Gráficos — últimos 20 registros</div>
+    <div class="charts">
+      <div class="chart-card">
+        <div class="chart-title">Temperatura (°C)</div>
+        <canvas id="chartTemp" height="160"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Umidade (%)</div>
+        <canvas id="chartUmidade" height="160"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABELA -->
+  <section>
+    <div class="section-label">Registros</div>
+    <div class="table-wrap">
+      {% if registros %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cidade</th>
+            <th>Temperatura</th>
+            <th>Umidade</th>
+            <th>Vento km/h</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Consultado em</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in registros %}
+          <tr>
+            <td style="color:var(--muted)">{{ r.id }}</td>
+            <td>{{ r.cidade }}</td>
+            <td>
+              {% if r.temperatura is not none %}
+                {% if r.temperatura > 30 %}
+                  <span class="badge badge-red">{{ r.temperatura }}°C</span>
+                {% elif r.temperatura > 20 %}
+                  <span class="badge badge-blue">{{ r.temperatura }}°C</span>
+                {% else %}
+                  <span class="badge badge-green">{{ r.temperatura }}°C</span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ r.umidade }}%</td>
+            <td>{{ r.vento_kmh }}</td>
+            <td style="color:var(--muted)">{{ r.latitude }}</td>
+            <td style="color:var(--muted)">{{ r.longitude }}</td>
+            <td style="color:var(--muted)">
+              {% if r.consultado_em %}{{ r.consultado_em.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">Nenhum registro encontrado. Use o formulário acima para buscar uma cidade.</div>
+      {% endif %}
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ── BUSCA ─────────────────────────────────────────────────────────────────────
+document.getElementById("inputCidade").addEventListener("keydown", e => {
+  if (e.key === "Enter") buscarClima();
+});
+
+async function buscarClima() {
+  const cidade = document.getElementById("inputCidade").value.trim();
+  const btn = document.getElementById("btnBuscar");
+  const resultado = document.getElementById("resultado");
+  const erroMsg = document.getElementById("erro-msg");
+
+  if (!cidade) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Buscando…';
+  resultado.style.display = "none";
+  erroMsg.style.display = "none";
+
+  try {
+    const form = new FormData();
+    form.append("cidade", cidade);
+    const res = await fetch("/buscar", { method: "POST", body: form });
+    const data = await res.json();
+
+    if (!res.ok) {
+      erroMsg.textContent = data.erro;
+      erroMsg.style.display = "block";
+    } else {
+      document.getElementById("rCidade").textContent = data.cidade;
+      document.getElementById("rTemp").textContent = data.temperatura + " °C";
+      document.getElementById("rUmidade").textContent = data.umidade + "%";
+      document.getElementById("rVento").textContent = data.vento_kmh + " km/h";
+      document.getElementById("rCoord").textContent = data.latitude + ", " + data.longitude;
+      document.getElementById("rHora").textContent = data.hora;
+      resultado.style.display = "block";
+      // Recarrega gráficos
+      carregarGraficos();
+    }
+  } catch {
+    erroMsg.textContent = "Erro ao conectar. Verifique sua conexão.";
+    erroMsg.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "Buscar";
+  }
+}
+
+// ── GRÁFICOS ──────────────────────────────────────────────────────────────────
+let chartTemp, chartUmidade;
+
+const chartDefaults = {
+  responsive: true,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { font: { family: "'IBM Plex Mono'", size: 10 }, color: "#777" }, grid: { color: "#eee" } },
+    y: { ticks: { font: { family: "'IBM Plex Mono'", size: 10 }, color: "#777" }, grid: { color: "#eee" } }
+  }
+};
+
+async function carregarGraficos() {
+  const res = await fetch("/api/grafico");
+  const dados = await res.json();
+
+  const labels = dados.map(d => d.hora + "\n" + d.cidade);
+  const temps  = dados.map(d => d.temperatura);
+  const umids  = dados.map(d => d.umidade);
+
+  if (chartTemp) chartTemp.destroy();
+  if (chartUmidade) chartUmidade.destroy();
+
+  chartTemp = new Chart(document.getElementById("chartTemp"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: temps,
+        borderColor: "#dc2626",
+        backgroundColor: "rgba(220,38,38,.08)",
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: "#dc2626",
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: chartDefaults
+  });
+
+  chartUmidade = new Chart(document.getElementById("chartUmidade"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data: umids,
+        backgroundColor: "rgba(37,99,235,.18)",
+        borderColor: "#2563eb",
+        borderWidth: 1.5,
+        borderRadius: 3
+      }]
+    },
+    options: chartDefaults
+  });
+}
+
+carregarGraficos();
+</script>
+</body>
+</html>
